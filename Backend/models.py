@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Enum, Date, ForeignKey, DECIMAL, DateTime
-from sqlalchemy.orm import relationships
-from enum import Enum as PyEnum, auto
+from sqlalchemy.orm import relationship
+from enum import Enum as PyEnum
 from .conexion import Base
 
 #clases de tipo EMUN
@@ -51,10 +51,11 @@ class Usuarios(Base):
     genero = Column(Enum(GeneroEnum))
     edad = Column(Integer)
     img = Column(String)
+    apellido2 = Column(String)
     # RELACIONES
-    torneo = relationships("Torneo", back_populates="usuario")
-    roles = relationships("UsuarioRol", back_populates="usuario")
-    participante = relationships("Participantes", back_populates="usuario")
+    torneo = relationship("Torneos", back_populates="usuario")
+    roles = relationship("UsuarioRol", back_populates="usuario")
+    participante = relationship("Participantes", back_populates="usuario")
 
 
 class Roles(Base):
@@ -63,7 +64,7 @@ class Roles(Base):
     rol_id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String, index=True)
     # RELACIONES
-    usuario = relationships("UsuarioRol", back_populates="rol")
+    usuario = relationship("UsuarioRol", back_populates="rol")
 
 class UsuarioRol(Base):
   __tablename__ = "usuarios_roles"
@@ -72,8 +73,8 @@ class UsuarioRol(Base):
   usuario_id = Column(Integer, ForeignKey("usuarios.usuario_id"))
   rol_id = Column(Integer, ForeignKey("roles.rol_id"))
   # RELACIONES
-  usuario = relationships("Usuarios", back_populates="roles")
-  rol = relationships("Roles", back_populates="usuarios")
+  usuario = relationship("Usuarios", back_populates="roles")
+  rol = relationship("Roles", back_populates="usuario")
 
 class Torneos(Base):
     __tablename__ = "torneos"
@@ -86,9 +87,9 @@ class Torneos(Base):
     estado = Column(Enum(EstadoEnum))
     img = Column(String)
     # RELACIONES
-    usuario = relationships("Usuarios", back_populates="torneo")
-    participante = relationships("Participantes", back_populates="torneo")
-    combate = relationships("Combates", back_populates="torneo")
+    usuario = relationship("Usuarios", back_populates="torneo")
+    participante = relationship("Participantes", back_populates="torneo")
+    combate = relationship("Combates", back_populates="torneo")
 
 class Escuelas(Base):
   __tablename__ = "escuelas"
@@ -101,7 +102,7 @@ class Escuelas(Base):
   correo = Column(String, index=True)
   contraseña = Column(String)
   # RELACIONES
-  participante = relationships("Participantes", back_populates="escuela")
+  participante = relationship("Participantes", back_populates="escuela")
 
 class Participantes(Base):
   __tablename__ = "participantes"
@@ -118,13 +119,13 @@ class Participantes(Base):
   edad = Column(Integer)
   grado = Column(Enum(GradoEnum))
   # RELACIONES
-  torneo = relationships("Torneos", back_populates="participante")
-  usuario = relationships("Usuarios", back_populates="participante")
-  escuela = relationships("Escuelas", back_populates="participante")
-  participante1 = relationships("Combates", back_populates="p1")
-  participante2 = relationships("Combates", back_populates="p2")
-  Pganador = relationships("Resultados", back_populates="ganador")
-  Pperdedor = relationships("Resultados", back_populates="perdedor")
+  torneo = relationship("Torneos", back_populates="participante")
+  usuario = relationship("Usuarios", back_populates="participante")
+  escuela = relationship("Escuelas", back_populates="participante")
+  participante1 = relationship("Combates", back_populates="p1", foreign_keys="[Combates.participante1_id]")
+  participante2 = relationship("Combates", back_populates="p2", foreign_keys="[Combates.participante2_id]")
+  Pganador = relationship("Resultados", foreign_keys="[Resultados.ganador]", back_populates="ganador_R")
+  Pperdedor = relationship("Resultados", foreign_keys="[Resultados.perdedor]", back_populates="perdedor_R")
 
 
 class Combates(Base):
@@ -136,10 +137,10 @@ class Combates(Base):
   participante2_id = Column(Integer, ForeignKey("participantes.participante_id"))
   fecha_hora = Column(DateTime)
   # RELACIONES
-  torneo = relationships("Torneos", back_populates="combate")
-  p1 = relationships("Participantes", back_populates="participante1")
-  p2 = relationships("Participantes", back_populates="participante2")
-  resultado = relationships("Resultados", back_populates="combate")
+  torneo = relationship("Torneos", back_populates="combate")
+  p1 = relationship("Participantes", foreign_keys=[participante1_id], back_populates="participante1")
+  p2 = relationship("Participantes", foreign_keys=[participante2_id], back_populates="participante2")
+  resultado = relationship("Resultados", back_populates="combate")
 
 class Resultados(Base):
   __tablename__ = "resultados"
@@ -152,6 +153,6 @@ class Resultados(Base):
   ganador = Column(Integer, ForeignKey("participantes.participante_id"))
   perdedor = Column(Integer, ForeignKey("participantes.participante_id"))
   # RELACIONES
-  combate = relationships("Combates", back_populates="resultado")
-  ganador = relationships("Participantes", back_populates="Pganador")
-  perdedor = relationships("Participantes", back_populates="Pperdedor")
+  combate = relationship("Combates", back_populates="resultado")
+  ganador_R = relationship("Participantes", foreign_keys=[ganador], back_populates="Pganador")
+  perdedor_R = relationship("Participantes", foreign_keys=[perdedor], back_populates="Pperdedor")
