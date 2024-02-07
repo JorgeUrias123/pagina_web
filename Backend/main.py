@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from . import models, schemas
+from . import models, schemas, security
 from .conexion import SessionLocal, engine
-from .security import hash_password, verify_password
+from datetime import timedelta
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -14,6 +14,32 @@ def get_db():
     yield db
   finally:
     db.close()
+
+@app.post("/login/")
+def login(login: schemas.login, db: Session = Depends(get_db)):
+  # AUTENTICAR EL USUARIO o la escuela
+  usuario = db.query(models.Usuarios).filter(models.Usuarios.correo == login.correo).first()
+  escuela = db.query(models.Escuelas).filter(models.Escuelas.correo == login.correo).first()
+  if usuario:
+    if not security.verify_password(login.contraseña, usuario.contraseña):
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Correo o contraseña incorrectos")
+    # GENERAR TOKEN DE ACCESO UNA VEZ QUE EL USUARIO SE AUTENTICO CON EXITO
+    access_token_expires = timedelta(minutes=security.ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = security.crear_token_acceso(
+      data={"sub": usuario.correo}, expires_delta=access_token_expires
+      )
+    return {"access_token": token, "token_type": "bearer"}
+  elif escuela:
+    if not security.verify_password(login.contraseña, escuela.contraseña):
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Correo o contraseña incorrectos")
+    # GENERAR TOKEN DE ACCESO UNA VEZ QUE EL USUARIO SE AUTENTICO CON EXITO
+    access_token_expires = timedelta(minutes=security.ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = security.crear_token_acceso(
+      data={"sub": escuela.correo}, expires_delta=access_token_expires
+      )
+    return {"access_token": token, "token_type": "bearer"}
+  else:
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Correo o contraseña incorrectos")
 
 @app.post("/roles/")
 def crear_rol(rol: schemas.crear_rol, db: Session = Depends(get_db)):
@@ -48,7 +74,7 @@ def crear_usuario(usuario: schemas.crear_usuario, db: Session = Depends(get_db))
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El rol especificado no existe")
   
   # ENCRIPTAR CONTRASEÑA
-  contraseña_encriptada = hash_password(usuario.contraseña)
+  contraseña_encriptada = security.hash_password(usuario.contraseña)
   
   # CREAR EL USUARIO EN LA BASE DE DATOS
   db_usuario = models.Usuarios(
@@ -101,7 +127,7 @@ def crear_escuela(escuela: schemas.crear_escuela, db: Session = Depends(get_db))
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta escuela ya esta registrada")
   
   # ENCRIPTAR CONTRASEÑA
-  contraseña_encriptada = hash_password(escuela.contraseña)
+  contraseña_encriptada = security.hash_password(escuela.contraseña)
 
   rol = db.query(models.Roles).filter(models.Roles.nombre == "Escuela").first()
 
