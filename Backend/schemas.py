@@ -2,6 +2,10 @@ from pydantic import BaseModel
 from .models import GeneroEnum, EstadoEnum
 from datetime import date
 
+class login(BaseModel):
+  correo: str
+  contraseña: str
+
 
 class crear_rol(BaseModel):
   nombre: str
